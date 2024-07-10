@@ -7,31 +7,43 @@ interface SubtitleHookProps {
 }
 export function useSubtitleHook({ movie }: SubtitleHookProps): { subtitle: string | undefined } {
   const [subtitle, setSubtitle] = useState<string>();
-  const srtToVTT = (src: string) => {
+  const srtToVTT = (movie: Movie) => {
     const subtitle = {
       data: {
-        src: src,
+        movie: movie,
+        src: '',
       },
       /**
        * Load the file from url
        *
        * @param src
        */
-      load: function (src: string) {
-        subtitle.data.src = src;
+      load: function (movie: Movie) {
+        subtitle.data.movie = movie;
 
-        if (subtitle.isSrt(subtitle.data.src)) {
-          const client = new XMLHttpRequest();
-          client.open('GET', subtitle.data.src);
-          client.onreadystatechange = function () {
-            console.log(subtitle.data.src);
-            subtitle.convert(client.responseText).then(function (file) {
-              subtitle.data.src = file;
-              setSubtitle(subtitle.data.src);
-            });
-          };
-          client.send();
+        subtitle.data.src = APIS.API_URL + movie.subtitleLink;
+
+        if (subtitle.isSrt(APIS.API_URL + movie.subtitleLink)) {
+          subtitle.data.src = APIS.API_URL + movie.subtitleLink;
+        } else if (movie.embededSubtitles.length > 0) {
+          console.log(movie.embededSubtitles);
+          if (movie.embededSubtitles.find((sub) => sub.language === 'rum')) {
+            subtitle.data.src = APIS.API_URL + '/api/v1/subtitle?movie=' + movie.movieLink + '&language=rum';
+          } else if (movie.embededSubtitles.find((sub) => sub.language === 'eng')) {
+            subtitle.data.src = APIS.API_URL + '/api/v1/subtitle?movie=' + movie.movieLink + '&language=eng';
+          }
         }
+
+        const client = new XMLHttpRequest();
+        client.open('GET', subtitle.data.src);
+        client.onreadystatechange = function () {
+          console.log(subtitle.data.src);
+          subtitle.convert(client.responseText).then(function (file) {
+            subtitle.data.src = file;
+            setSubtitle(subtitle.data.src);
+          });
+        };
+        client.send();
       },
       /**
        * Converts the SRT string to a VTT formatted string
@@ -64,7 +76,7 @@ export function useSubtitleHook({ movie }: SubtitleHookProps): { subtitle: strin
       },
     };
 
-    subtitle.load(src);
+    subtitle.load(movie);
   };
 
   useEffect(() => {
@@ -73,7 +85,7 @@ export function useSubtitleHook({ movie }: SubtitleHookProps): { subtitle: strin
       return;
     }
 
-    srtToVTT(APIS.API_URL + movie.subtitleLink);
+    srtToVTT(movie);
   }, [movie]);
 
   return { subtitle };
